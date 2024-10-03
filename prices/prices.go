@@ -1,6 +1,7 @@
 package prices
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/adnux/go-price-calculator/conversion"
@@ -22,10 +23,13 @@ func NewTaxIncludedPriceJob(iom ioManager.IOManager, taxRate float64) *TaxInclud
 	}
 }
 
-func (job *TaxIncludedPriceJob) Process(doneChannel chan bool) {
+func (job *TaxIncludedPriceJob) Process(doneChannel chan bool, errorChannel chan error) {
 	err := job.LoadData()
 
+	errorChannel <- errors.New("Purposefully failed")
+
 	if err != nil {
+		errorChannel <- err
 		// return err
 	}
 

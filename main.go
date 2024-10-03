@@ -33,7 +33,7 @@ func DeletePreviousGeneratedFiles() error {
 func main() {
 	taxRates := []float64{0, 0.07, 0.1, 0.15}
 	doneChannels := make([]chan bool, len(taxRates))
-	// errorChannels := make([]chan error, len(taxRates))
+	errorChannels := make([]chan error, len(taxRates))
 
 	err := DeletePreviousGeneratedFiles()
 	if err != nil {
@@ -43,13 +43,14 @@ func main() {
 
 	for index, taxRate := range taxRates {
 		doneChannels[index] = make(chan bool)
+		errorChannels[index] = make(chan error)
 
 		fileName := fmt.Sprintf("result_%.0f.json", taxRate*100)
 		fm := files.New("prices.txt", fileName)
 		// cm := cmd.New()
 		priceJob := prices.NewTaxIncludedPriceJob(fm, taxRate)
 		// err := priceJob.Process(doneChannels[index])
-		go priceJob.Process(doneChannels[index])
+		go priceJob.Process(doneChannels[index], errorChannels[index])
 
 		if err != nil {
 			fmt.Println("Could not process job")
@@ -57,7 +58,19 @@ func main() {
 		}
 	}
 
-	for _, doneChannel := range doneChannels {
-		<-doneChannel
+	for index := range taxRates {
+		select {
+		case err := <-errorChannels[index]:
+			if err != nil {
+				fmt.Printf("Error processing Job: %d\n", index)
+				fmt.Println(err)
+			}
+		case <-doneChannels[index]:
+			fmt.Printf("Job: %d done\n", index)
+		}
 	}
+
+	// for _, doneChannel := range doneChannels {
+	// 	<-doneChannel
+	// }
 }
